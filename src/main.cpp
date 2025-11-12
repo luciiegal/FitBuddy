@@ -11,7 +11,7 @@ BluetoothSerial SerialBT;
 Adafruit_LSM6DSOX lsm6dsox;
 Adafruit_LIS3MDL lis3mdl;
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   SerialBT.begin("ESP32_GAB");
   Wire.begin();
   if (!lsm6dsox.begin_I2C()) {
