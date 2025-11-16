@@ -78,31 +78,71 @@ def summarize_rep(t_rep, a_rep, v_rep):
     if (np.max(a_rep) - np.min(a_rep)) < MIN_PEAK_TO_PEAK_A:
         return None
 
+    # --- Force & Power ---
     F_signed = mass_kg * a_rep      # physical force (signed)
     F = np.abs(F_signed)            # report force as positive
     P = F_signed * v_rep            # power keeps physical sign
 
+    # --- Tempo concentrique / excentrique ---
     dt = np.diff(t_rep, prepend=t_rep[0])
     conc = v_rep >= 0
     ecc  = v_rep < 0
     tempo_con = float(np.sum(dt[conc]))
     tempo_ecc = float(np.sum(dt[ecc]))
 
+    # --- Force / Velocity ratio ---
     mean_abs_v = float(np.mean(np.abs(v_rep))) if np.any(np.abs(v_rep) > 0) else 0.0
     fv_ratio = float(np.mean(F)) / mean_abs_v if mean_abs_v > 1e-6 else 0.0
 
     return dict(
-        force_min=float(np.min(F)), force_max=float(np.max(F)), force_mean=float(np.mean(F)),
-        power_min=float(np.min(P)), power_max=float(np.max(P)), power_mean=float(np.mean(P)),
-        tempo_con=tempo_con, tempo_ecc=tempo_ecc, fv_ratio=fv_ratio
+        force_min=float(np.min(F)),
+        force_max=float(np.max(F)),
+        force_mean=float(np.mean(F)),
+        power_min=float(np.min(P)),
+        power_max=float(np.max(P)),
+        power_mean=float(np.mean(P)),
+        tempo_con=tempo_con,
+        tempo_ecc=tempo_ecc,
+        fv_ratio=fv_ratio
     )
 
 def session_aggregates(summaries):
+    """
+    Aggregate ALL reps to get:
+    - Force min / max / mean
+    - Power min / max / mean
+    - Mean concentric / eccentric tempo
+    - Mean F/V ratio
+    """
     if not summaries:
-        return {"force_mean":0.0, "power_mean":0.0}
-    f_means = [s["force_mean"] for s in summaries]
-    p_means = [s["power_mean"] for s in summaries]
-    return {"force_mean": float(np.mean(f_means)), "power_mean": float(np.mean(p_means))}
+        return {
+            "force_min": 0.0, "force_max": 0.0, "force_mean": 0.0,
+            "power_min": 0.0, "power_max": 0.0, "power_mean": 0.0,
+            "tempo_con_mean": 0.0, "tempo_ecc_mean": 0.0,
+            "fv_ratio_mean": 0.0
+        }
+
+    f_min  = [s["force_min"]   for s in summaries]
+    f_max  = [s["force_max"]   for s in summaries]
+    f_mean = [s["force_mean"]  for s in summaries]
+    p_min  = [s["power_min"]   for s in summaries]
+    p_max  = [s["power_max"]   for s in summaries]
+    p_mean = [s["power_mean"]  for s in summaries]
+    t_con  = [s["tempo_con"]   for s in summaries]
+    t_ecc  = [s["tempo_ecc"]   for s in summaries]
+    fv_all = [s["fv_ratio"]    for s in summaries]
+
+    return {
+        "force_min":  float(np.min(f_min)),
+        "force_max":  float(np.max(f_max)),
+        "force_mean": float(np.mean(f_mean)),
+        "power_min":  float(np.min(p_min)),
+        "power_max":  float(np.max(p_max)),
+        "power_mean": float(np.mean(p_mean)),
+        "tempo_con_mean": float(np.mean(t_con)),
+        "tempo_ecc_mean": float(np.mean(t_ecc)),
+        "fv_ratio_mean":  float(np.mean(fv_all))
+    }
 
 def save_to_csv(rep_id, summary):
     csv_writer.writerow([
@@ -256,16 +296,18 @@ def main():
             ax_reps.set_ylim(0, max(10, repetitions + 1))
 
             bar_force[0].set_height(sess["force_mean"])
-            ax_force.set_ylim(0, max(10, abs(sess["force_mean"]) * 1.3))
+            ax_force.set_ylim(0, max(10, abs(sess["force_max"]) * 1.3))
 
             bar_power[0].set_height(sess["power_mean"])
-            ax_power.set_ylim(0, max(10, abs(sess["power_mean"]) * 1.3))
+            ax_power.set_ylim(0, max(10, abs(sess["power_max"]) * 1.3))
 
             if rep_summaries:
-                last = rep_summaries[-1]
                 fig.suptitle(
-                    f"Reps: {repetitions} | ⟨F⟩={sess['force_mean']:.1f}N | ⟨P⟩={sess['power_mean']:.1f}W | "
-                    f"Last Tempo C/E={last['tempo_con']:.2f}/{last['tempo_ecc']:.2f}s | F/V={last['fv_ratio']:.2f}"
+                    f"Reps: {repetitions} | "
+                    f"F[min/mean/max]={sess['force_min']:.1f}/{sess['force_mean']:.1f}/{sess['force_max']:.1f}N | "
+                    f"P[min/mean/max]={sess['power_min']:.1f}/{sess['power_mean']:.1f}/{sess['power_max']:.1f}W | "
+                    f"⟨Tempo⟩ C/E={sess['tempo_con_mean']:.2f}/{sess['tempo_ecc_mean']:.2f}s | "
+                    f"⟨F/V⟩={sess['fv_ratio_mean']:.2f}"
                 )
             else:
                 fig.suptitle(f"Reps: {repetitions}")
@@ -287,4 +329,6 @@ if __name__ == "__main__":
             print("✅ Data saved to:", os.path.abspath(csv_filename))
         except Exception:
             pass
+
+
 
