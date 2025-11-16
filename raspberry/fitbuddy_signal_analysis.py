@@ -223,11 +223,14 @@ def main():
     ax_power = fig.add_subplot(gs[1, 2])
 
     bar_reps  = ax_reps.bar(["Reps"], [0])
-    bar_force = ax_force.bar(["⟨Force⟩ (N)"], [0])
-    bar_power = ax_power.bar(["⟨Power⟩ (W)"], [0])
+    bar_force = ax_force.bar(["Fmin", "Fmean", "Fmax"], [0, 0, 0])
+    bar_power = ax_power.bar(["Pmin", "Pmean", "Pmax"], [0, 0, 0])
+
+    ax_reps.set_ylabel("Count")
+    ax_force.set_ylabel("Force (N)")
+    ax_power.set_ylabel("Power (W)")
 
     for ax in (ax_reps, ax_force, ax_power):
-        ax.set_ylim(0, 10)
         ax.grid(True, axis='y')
 
     moving_up, repetitions = False, 0
@@ -268,9 +271,12 @@ def main():
                     save_to_csv(repetitions, summary)
                     print(
                         f"🔁 Rep {repetitions:02d} | "
-                        f"F[N] min/max/mean: {summary['force_min']:.1f}/{summary['force_max']:.1f}/{summary['force_mean']:.1f} | "
-                        f"P[W] min/max/mean: {summary['power_min']:.1f}/{summary['power_max']:.1f}/{summary['power_mean']:.1f} | "
-                        f"Tempo C/E[s]: {summary['tempo_con']:.2f}/{summary['tempo_ecc']:.2f} | "
+                        f"F[N] min/max/mean: {summary['force_min']:.1f}/"
+                        f"{summary['force_max']:.1f}/{summary['force_mean']:.1f} | "
+                        f"P[W] min/max/mean: {summary['power_min']:.1f}/"
+                        f"{summary['power_max']:.1f}/{summary['power_mean']:.1f} | "
+                        f"Tempo C/E[s]: {summary['tempo_con']:.2f}/"
+                        f"{summary['tempo_ecc']:.2f} | "
                         f"F/V ratio: {summary['fv_ratio']:.2f}"
                     )
                 rep_y_raw, rep_t_raw = [], []
@@ -291,23 +297,45 @@ def main():
 
             sess = session_aggregates(rep_summaries)
 
-            # update three bars (independent y-scales)
+            # --- update bar charts ---
+
+            # Reps
             bar_reps[0].set_height(repetitions)
-            ax_reps.set_ylim(0, max(10, repetitions + 1))
+            ax_reps.set_ylim(0, max(1, repetitions + 1))
 
-            bar_force[0].set_height(sess["force_mean"])
-            ax_force.set_ylim(0, max(10, abs(sess["force_max"]) * 1.3))
+            # Force: Fmin / Fmean / Fmax
+            fmin, fmean, fmax = sess["force_min"], sess["force_mean"], sess["force_max"]
+            bar_force[0].set_height(fmin)
+            bar_force[1].set_height(fmean)
+            bar_force[2].set_height(fmax)
+            ax_force.set_ylim(0, max(1.0, fmax * 1.3))
 
-            bar_power[0].set_height(sess["power_mean"])
-            ax_power.set_ylim(0, max(10, abs(sess["power_max"]) * 1.3))
+            # Power: Pmin / Pmean / Pmax （允许负值，显示 0 线）
+            pmin, pmean, pmax = sess["power_min"], sess["power_mean"], sess["power_max"]
+            bar_power[0].set_height(pmin)
+            bar_power[1].set_height(pmean)
+            bar_power[2].set_height(pmax)
 
+            p_top = max(pmax, 0.0)
+            p_bottom = min(pmin, 0.0)
+            if abs(p_top - p_bottom) < 1e-3:  # 避免范围太小
+                p_top += 1.0
+                p_bottom -= 1.0
+            ax_power.set_ylim(p_bottom * 1.3, p_top * 1.3)
+            ax_power.axhline(0, linewidth=0.8)
+
+            # --- Title: 一行 F/P, 一行 Tempo + F/V ---
             if rep_summaries:
                 fig.suptitle(
-                    f"Reps: {repetitions} | "
-                    f"F[min/mean/max]={sess['force_min']:.1f}/{sess['force_mean']:.1f}/{sess['force_max']:.1f}N | "
-                    f"P[min/mean/max]={sess['power_min']:.1f}/{sess['power_mean']:.1f}/{sess['power_max']:.1f}W | "
-                    f"⟨Tempo⟩ C/E={sess['tempo_con_mean']:.2f}/{sess['tempo_ecc_mean']:.2f}s | "
-                    f"⟨F/V⟩={sess['fv_ratio_mean']:.2f}"
+                    "Reps: {} | F[min/mean/max]={:.1f}/{:.1f}/{:.1f} N | "
+                    "P[min/mean/max]={:.1f}/{:.1f}/{:.1f} W\n"
+                    "⟨Tempo⟩ C/E={:.2f}/{:.2f} s | ⟨F/V⟩={:.2f}".format(
+                        repetitions,
+                        sess["force_min"], sess["force_mean"], sess["force_max"],
+                        sess["power_min"], sess["power_mean"], sess["power_max"],
+                        sess["tempo_con_mean"], sess["tempo_ecc_mean"],
+                        sess["fv_ratio_mean"]
+                    )
                 )
             else:
                 fig.suptitle(f"Reps: {repetitions}")
@@ -329,6 +357,8 @@ if __name__ == "__main__":
             print("✅ Data saved to:", os.path.abspath(csv_filename))
         except Exception:
             pass
+
+
 
 
 
