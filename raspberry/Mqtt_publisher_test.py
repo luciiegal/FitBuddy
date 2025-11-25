@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 import time 
 
-BROKER = "20.251.170.166" #Ip de la VM
+BROKER = "20.251.170.166"
 PORT = 1883
 TOPIC = "test" 
 
@@ -11,7 +11,7 @@ try:
 	print("Connect")
 	
 	while True:
-		message = "Hello world"
+		message = "Rep : 10, Force : 50 N, Power : 50 W"
 		client.publish(TOPIC,message)
 		print("Message envoye")
 		time.sleep(2)
