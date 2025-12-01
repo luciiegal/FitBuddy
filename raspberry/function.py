@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import find_peaks
 from datetime import datetime
+import zipfile
+import io
+import paho.mqtt.client as mqtt
+import base64
 
 
 class KalmanFilterAccelerometer:
@@ -425,6 +429,94 @@ def analyze_workout_from_csv(csv_filepath, process_noise=0.003, measurement_nois
     
     return results
 
+def dict_to_zip(results,zip_path="results.zip"):
+    """
+    Create a zip of a results dict
+    
+    Parameters:
+    -----------
+    results : dict
+        Results from analyze_workout_from_csv function containing workout metrics.
+        Expected keys include:
+        - df: DataFrame containing raw data
+        - filtered_data: Kalman-filtered accelerometer data
+        - primary_axis: Index of primary movement axis
+        - rep_peaks: Indices of repetition peaks
+        - rest_periods: List of (start, end) tuples for rest periods
+        - timestamps: Array of measurement timestamps
+        - sets: List of (start, end) tuples for each set
+        - rom_percentages: Array of ROM percentages for each rep
+        - max_rom_idx: Index of rep with maximum ROM
+        - rep_durations: Array of durations for each rep
+        - rest_durations: Array of durations for each rest period
+    """
+    # Unpack the results
+    df = results['df']
+    filtered_data = results['filtered_data']
+    primary_axis = results['primary_axis']
+    rep_peaks = results['rep_peaks']
+    rest_periods = results['rest_periods']
+    timestamps = results['timestamps']
+    sets = results['sets']
+    rom_percentages = results['rom_percentages']
+    max_rom_idx = results['max_rom_idx']
+    rep_durations = results['rep_durations']
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+
+        # 1. Raw dataframe
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        z.writestr("raw_data.csv", csv_buffer.getvalue())
+
+        # 2. Filtered data (CSV)
+        filtered_df = pd.DataFrame(filtered_data)
+        csv_buffer = io.StringIO()
+        filtered_df.to_csv(csv_buffer, index=False)
+        z.writestr("filtered_data.csv", csv_buffer.getvalue())
+
+        # 3. Simple TXT values
+        z.writestr("primary_axis.txt", str(primary_axis))
+        z.writestr("max_rom_idx.txt", str(max_rom_idx))
+
+        # 4. List/array exports as CSV
+        def write_csv(name, data):
+            csv_buffer = io.StringIO()
+            pd.DataFrame(data).to_csv(csv_buffer, index=False, header=False)
+            z.writestr(name, csv_buffer.getvalue())
+
+        write_csv("rep_peaks.csv", rep_peaks)
+        write_csv("rest_periods.csv", rest_periods)
+        write_csv("timestamps.csv", timestamps)
+        write_csv("sets.csv", sets)
+        write_csv("rom_percentages.csv", rom_percentages)
+        write_csv("rep_durations.csv", rep_durations)
+        #write_csv("rest_durations.csv", rest_durations)
+
+    return zip_path
+    
+def send_mqtt(zip_path, broker = "20.251.170.166", port = 1883,TOPIC = "sensors/zip"):
+    # Lire le ZIP
+    with open(zip_path, "rb") as f:
+        zip_bytes = f.read()
+
+    # Encoder en base64
+    zip_b64 = base64.b64encode(zip_bytes).decode()  # Converti en str UTF-8
+
+    # Créer le client MQTT
+    client = mqtt.Client()
+    client.connect(broker, port, 60)
+    client.loop_start()
+
+    # Publier le message
+    client.publish(topic, zip_b64)
+    print(f"[MQTT] ZIP envoyé sur le topic '{topic}'")
+
+    client.loop_stop()
+    client.disconnect()
+        
+
+
 def visualize_workout_analysis_from_csv(results):
     """
     Visualize the workout analysis results using only accelerometer data.
@@ -600,6 +692,7 @@ def visualize_workout_analysis_from_csv(results):
             plt.axis('off')  # Hide the axes
     
     plt.tight_layout()
+    plt.savefig("workout_analysis.png", dpi=300, bbox_inches="tight")
     plt.show()
     
     # Print a summary of the workout
@@ -641,6 +734,9 @@ if __name__ == "__main__":
     
     # Get workout analysis results
     results = analyze_workout_from_csv(csv_filepath, process_noise=0.003, measurement_noise=0.1)
-    
+    #print(results['sets'])
+    path = dict_to_zip(results)
+    send_mqtt(path,broker = None, port = None,TOPIC = None)
+
     # Visualize results
-    visualize_workout_analysis_from_csv(results)
+    #visualize_workout_analysis_from_csv(results)
