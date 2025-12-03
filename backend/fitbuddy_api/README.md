@@ -131,6 +131,7 @@ Documentation interactive :
 - ReDoc : http://localhost:8000/redoc
 ---
 
+
 ## 📘 Models (Pydantic)
 
 ### `Sensor`
