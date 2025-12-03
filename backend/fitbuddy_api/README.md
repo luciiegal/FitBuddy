@@ -43,48 +43,71 @@ Raspberry Pi  →  Mosquitto MQTT
 
 ## 📦 Installation
 
-### 1️⃣ Prérequis
+### 1) Prérequis
 
 Assurez-vous d’avoir installé :
 
-- Python 3.10+  
-- pip  
-- Git  
+- Python 3.10+
+- pip
+- Git
 - PostgreSQL
 
-### 2️⃣ Cloner le repository
+---
+
+### 2) Cloner le repository
 
 ```bash
 git clone https://github.com/em-madurand/FitBuddy.git
 cd FitBuddy
 ```
 
-### 3️⃣ Créer un environnement virtuel
+---
 
-Windows PowerShell :
+### 3) Se placer dans le dossier de l’API
+
+```bash
+cd backend/fitbuddy_api
+```
+
+---
+
+### 4) Créer un environnement virtuel
+
+#### Windows PowerShell :
 
 ```powershell
 py -3 -m venv venv
-.
-env\Scripts\Activate.ps1
+.env\Scripts\Activate.ps1
 ```
 
-Linux / macOS :
+#### Linux / macOS :
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 4️⃣ Installer les dépendances Python
+---
+
+### 5) Installer les dépendances
+
+#### Option 1 – installation directe :
 
 ```bash
 pip install fastapi uvicorn psycopg2-binary python-dotenv
 ```
 
-### 5️⃣ Configurer les variables d’environnement
+#### Option 2 – via requirements.txt (recommandé) :
 
-Créer un fichier `.env` à la racine :
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 6) Configurer les variables d’environnement
+
+Créer un fichier `.env` dans `backend/fitbuddy_api/` :
 
 ```env
 DB_HOST=localhost
@@ -94,15 +117,18 @@ DB_USER=postgres
 DB_PASSWORD=ESILVPI2projet?
 ```
 
-### 6️⃣ Lancer le serveur FastAPI
+---
+
+### 7) Lancer le serveur FastAPI
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Swagger UI :  
-http://localhost:8000/docs
+Documentation interactive :
 
+- Swagger UI : http://localhost:8000/docs  
+- ReDoc : http://localhost:8000/redoc
 ---
 
 ## 📘 Models (Pydantic)
